@@ -36,7 +36,6 @@ const SecureChat = () => {
   // Session management
   const startSession = (user) => {
     setCurrentUser(user);
-    // Auto-logout after 30 minutes of inactivity
     resetSessionTimeout();
   };
 
@@ -55,21 +54,25 @@ const SecureChat = () => {
     if (sessionTimeout.current) clearTimeout(sessionTimeout.current);
   };
 
-  // Load stored data
+  // Load stored data from localStorage
   useEffect(() => {
-    const loadData = async () => {
+    const loadData = () => {
       try {
-        const usersData = await window.storage.get('chat_users', true);
-        const users = usersData ? JSON.parse(usersData.value) : {};
-        
-        const onlineData = await window.storage.get('chat_online', true);
-        const online = onlineData ? JSON.parse(onlineData.value) : [];
+        // Initialize localStorage if needed
+        if (!localStorage.getItem('chat_users')) {
+          localStorage.setItem('chat_users', JSON.stringify({}));
+        }
+        if (!localStorage.getItem('chat_online')) {
+          localStorage.setItem('chat_online', JSON.stringify([]));
+        }
+        if (!localStorage.getItem('chat_messages')) {
+          localStorage.setItem('chat_messages', JSON.stringify([]));
+        }
+
+        const online = JSON.parse(localStorage.getItem('chat_online') || '[]');
         setOnlineUsers(online);
       } catch (err) {
-        // Initialize if no data exists
-        await window.storage.set('chat_users', JSON.stringify({}), true);
-        await window.storage.set('chat_online', JSON.stringify([]), true);
-        await window.storage.set('chat_messages', JSON.stringify([]), true);
+        console.error('Error loading data:', err);
       }
     };
     loadData();
@@ -84,11 +87,11 @@ const SecureChat = () => {
     }
   }, [currentUser]);
 
-  const loadMessages = async () => {
+  const loadMessages = () => {
     try {
-      const data = await window.storage.get('chat_messages', true);
-      if (data) {
-        const encrypted = JSON.parse(data.value);
+      const stored = localStorage.getItem('chat_messages');
+      if (stored) {
+        const encrypted = JSON.parse(stored);
         const decrypted = encrypted.map(msg => ({
           ...msg,
           text: simpleDecrypt(msg.text, currentUser.key)
@@ -100,15 +103,14 @@ const SecureChat = () => {
     }
   };
 
-  const handleRegister = async () => {
+  const handleRegister = () => {
     if (!username.trim() || password.length < 8) {
       setError('Username required and password must be at least 8 characters');
       return;
     }
 
     try {
-      const usersData = await window.storage.get('chat_users', true);
-      const users = usersData ? JSON.parse(usersData.value) : {};
+      const users = JSON.parse(localStorage.getItem('chat_users') || '{}');
 
       if (users[username]) {
         setError('Username already exists');
@@ -119,7 +121,7 @@ const SecureChat = () => {
       const userKey = btoa(username + password);
       users[username] = { password: hashedPwd, key: userKey };
       
-      await window.storage.set('chat_users', JSON.stringify(users), true);
+      localStorage.setItem('chat_users', JSON.stringify(users));
       
       const user = { username, key: userKey };
       startSession(user);
@@ -127,18 +129,18 @@ const SecureChat = () => {
       setError('');
     } catch (err) {
       setError('Registration failed');
+      console.error(err);
     }
   };
 
-  const handleLogin = async () => {
+  const handleLogin = () => {
     if (!username.trim() || !password) {
       setError('Username and password required');
       return;
     }
 
     try {
-      const usersData = await window.storage.get('chat_users', true);
-      const users = usersData ? JSON.parse(usersData.value) : {};
+      const users = JSON.parse(localStorage.getItem('chat_users') || '{}');
 
       if (!users[username]) {
         setError('User not found');
@@ -157,13 +159,13 @@ const SecureChat = () => {
       setError('');
     } catch (err) {
       setError('Login failed');
+      console.error(err);
     }
   };
 
-  const updateOnlineUsers = async (username, isOnline) => {
+  const updateOnlineUsers = (username, isOnline) => {
     try {
-      const data = await window.storage.get('chat_online', true);
-      let online = data ? JSON.parse(data.value) : [];
+      let online = JSON.parse(localStorage.getItem('chat_online') || '[]');
       
       if (isOnline && !online.includes(username)) {
         online.push(username);
@@ -171,14 +173,14 @@ const SecureChat = () => {
         online = online.filter(u => u !== username);
       }
       
-      await window.storage.set('chat_online', JSON.stringify(online), true);
+      localStorage.setItem('chat_online', JSON.stringify(online));
       setOnlineUsers(online);
     } catch (err) {
       console.error('Error updating online users:', err);
     }
   };
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = () => {
     if (!newMessage.trim() || !currentUser) return;
 
     resetSessionTimeout();
@@ -192,18 +194,18 @@ const SecureChat = () => {
     };
 
     try {
-      const data = await window.storage.get('chat_messages', true);
-      const messages = data ? JSON.parse(data.value) : [];
+      const messages = JSON.parse(localStorage.getItem('chat_messages') || '[]');
       messages.push(message);
       
       // Keep only last 100 messages
       if (messages.length > 100) messages.shift();
       
-      await window.storage.set('chat_messages', JSON.stringify(messages), true);
+      localStorage.setItem('chat_messages', JSON.stringify(messages));
       setNewMessage('');
       loadMessages();
     } catch (err) {
       setError('Failed to send message');
+      console.error(err);
     }
   };
 
@@ -238,7 +240,7 @@ const SecureChat = () => {
                   <li>End-to-end encryption</li>
                   <li>Secure password hashing</li>
                   <li>Auto-logout after 30min inactivity</li>
-                  <li>Shared encrypted message storage</li>
+                  <li>Local encrypted storage</li>
                 </ul>
               </div>
             </div>
@@ -280,8 +282,9 @@ const SecureChat = () => {
             <div className="flex gap-3">
               <button
                 onClick={handleLogin}
-                className="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-medium"
+                className="flex-1 bg-indigo-600 py-3 rounded-lg hover:bg-indigo-700 transition font-medium flex items-center justify-center"
               >
+                <Lock className="w-5 h-5 mr-2" />
                 Login
               </button>
               <button
@@ -295,7 +298,7 @@ const SecureChat = () => {
           </div>
 
           <p className="mt-6 text-xs text-gray-500 text-center">
-            All messages are encrypted. Data is shared across all users of this chat.
+            All messages are encrypted and stored locally in your browser.
           </p>
         </div>
       </div>
