@@ -2,4 +2,5 @@
 Simple web app for messaging with best security and convenience practices
 
 ## Login Page
-<img width="582" height="923" alt="image" src="https://github.com/user-attachments/assets/2c68835d-1df6-48a8-b160-b6572e306883" />
+<img width="529" height="919" alt="image" src="https://github.com/user-attachments/assets/0b2b1dbb-d5dc-4de1-9833-57fb6705ce27" />
+
