@@ -10,6 +10,9 @@ const SecureChat = () => {
   const [newMessage, setNewMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [error, setError] = useState('');
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const messagesEndRef = useRef(null);
   const sessionTimeout = useRef(null);
 
@@ -163,6 +166,49 @@ const SecureChat = () => {
     }
   };
 
+  const handleResetPassword = () => {
+    if (!username.trim()) {
+      setError('Username required');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError('New password must be at least 8 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    try {
+      const users = JSON.parse(localStorage.getItem('chat_users') || '{}');
+
+      if (!users[username]) {
+        setError('User not found');
+        return;
+      }
+
+      // Update password
+      const hashedPwd = hashPassword(newPassword);
+      const userKey = btoa(username + newPassword);
+      users[username] = { password: hashedPwd, key: userKey };
+      
+      localStorage.setItem('chat_users', JSON.stringify(users));
+      
+      setError('');
+      setShowResetPassword(false);
+      setNewPassword('');
+      setConfirmPassword('');
+      setPassword('');
+      alert('Password reset successful! Please login with your new password.');
+    } catch (err) {
+      setError('Password reset failed');
+      console.error(err);
+    }
+  };
+
   const updateOnlineUsers = (username, isOnline) => {
     try {
       let online = JSON.parse(localStorage.getItem('chat_online') || '[]');
@@ -252,50 +298,120 @@ const SecureChat = () => {
             </div>
           )}
 
-          <div className="space-y-4">
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            
-            <div className="relative">
+          {!showResetPassword ? (
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password (min 8 characters)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 pr-10"
+                />
+                <button
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleLogin}
+                  className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg hover:bg-indigo-700 transition font-medium flex items-center justify-center"
+                >
+                  <Lock className="w-5 h-5 mr-2" />
+                  Login
+                </button>
+                <button
+                  onClick={handleRegister}
+                  className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg hover:bg-gray-300 transition font-medium flex items-center justify-center"
+                >
+                  <UserPlus className="w-5 h-5 mr-2" />
+                  Register
+                </button>
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowResetPassword(true);
+                  setError('');
+                  setPassword('');
+                }}
+                className="w-full text-sm text-indigo-600 hover:text-indigo-800 underline"
+              >
+                Forgot password? Reset it here
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Reset Password</h2>
+              
+              <input
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="New Password (min 8 characters)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 pr-10"
+                />
+                <button
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="Password (min 8 characters)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 pr-10"
+                placeholder="Confirm New Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleResetPassword()}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
-              <button
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={handleLogin}
-                className="flex-1 bg-indigo-600 py-3 rounded-lg hover:bg-indigo-700 transition font-medium flex items-center justify-center"
-              >
-                <Lock className="w-5 h-5 mr-2" />
-                Login
-              </button>
-              <button
-                onClick={handleRegister}
-                className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg hover:bg-gray-300 transition font-medium flex items-center justify-center"
-              >
-                <UserPlus className="w-5 h-5 mr-2" />
-                Register
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleResetPassword}
+                  className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg hover:bg-indigo-700 transition font-medium"
+                >
+                  Reset Password
+                </button>
+                <button
+                  onClick={() => {
+                    setShowResetPassword(false);
+                    setError('');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                  }}
+                  className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg hover:bg-gray-300 transition font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <p className="mt-6 text-xs text-gray-500 text-center">
             All messages are encrypted and stored locally in your browser.
